@@ -1,18 +1,241 @@
 ---
 title: "RAIS"
 description: |
-  Welcome to the website. I hope you enjoy it!
+  Análise da base de dados RAIS
+author: 
+  - name: Rafael Peixoto
+    affiliation: Universidade Estadual de Campinas
+date: 09-15-2021
 site: distill::distill_website
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 
-# Learn more about creating websites with Distill at:
-# https://rstudio.github.io/distill/website.html
-
-# Learn more about publishing to GitHub Pages at:
-# https://rstudio.github.io/distill/publish_website.html#github-pages
-
+library(data.table)
+library(tidyverse)
+library(rmarkdown)
+library(ggthemes)
 ```
+
+# Importação dos dados
+
+Vamos utilizar a função `fread`, do pacote `data.table`, para importar os dados do arquivo "RR2017.txt", que possui cabeçalho (header) e tem seus elementos separados por ponto e vírgula (;).
+
+```{r, include=FALSE}
+df <- fread(
+  file = "amostra_rais.csv",
+  header = TRUE,
+  sep = ";",
+  dec = ",",
+  encoding = "UTF-8")
+```
+
+```{r}
+RR17 <- fread(
+  file = "RR2017.txt",
+  header = TRUE,
+  sep = ";",
+  dec = ",",
+  encoding = "Latin-1",
+  stringsAsFactors = FALSE)
+```
+
+# Exploração dos dados
+
+O Arquivo "RR2017.txt" contém as seguintes variáveis:
+
+```{r}
+RR17 %>% colnames()
+```
+
+Dessas, vamos pegar algumas para analisar:
+
+```{r}
+dados <- RR17 %>%
+  select(`Faixa Etária`,
+         `Faixa Remun Média (SM)`,
+         `Escolaridade após 2005`)
+```
+
+
+```{r, layout="l-body-outset"}
+dados %>%
+  glimpse()
+
+dados %>%
+  paged_table()
+```
+
+Como podemos ver, todas essas variáveis possuem valores numéricos inteiros. Todas essas variáveis possuem valores que precisam ser interpretados a partir do dicionário.
+
+Por exemplo, a variável `Faixa Etária` possui a seguinte condificação:
+
+| FAIXA ETÁRIA |                 |
+|--------------|-----------------|
+| 01           | 10 A 14 anos    |
+| 02           | 15 A 17 anos    |
+| 03           | 18 A 24 anos    |
+| 04           | 25 A 29 anos    |
+| 05           | 30 A 39 anos    |
+| 06           | 40 A 49 anos    |
+| 07           | 50 A 64 anos    |
+| 08           | 65 anos ou mais |
+| {ñ class}    | {ñ class}       |
+
+A variável `Faixa Remun Média (SM)`:
+
+| FAIXA REMUNERAÇAO MÉDIA DO ANO |                                |
+|--------------------------------|--------------------------------|
+| 00                             | Até 0,50 salários mínimos      |
+| 01                             | 0,51 a 1,00 salários mínimos   |
+| 02                             | 1,01 a 1,50 salários mínimos   |
+| 03                             | 1,51 a 2,00 salários mínimos   |
+| 04                             | 2,01 a 3,00 salários mínimos   |
+| 05                             | 3,01 a 4,00 salários mínimos   |
+| 06                             | 4,01 a 5,00 salários mínimos   |
+| 07                             | 5,01 a 7,00 salários mínimos   |
+| 08                             | 7,01 a 10,00 salários mínimos  |
+| 09                             | 10,01 a 15,00 salários mínimos |
+| 10                             | 15,01 a 20,00 salários mínimos |
+| 11                             | Mais de 20,00 salários mínimos |
+| {ñ class}                      | {ñ class}                      |
+
+E a variável `Escolaridade após 2005`:
+
+| GRAU DE INSTRUÇÃO |    |
+|-------------------|----|
+| ANALFABETO        | 1  |
+| ATE 5.A INC       | 2  |
+| 5.A CO FUND       | 3  |
+| 6. A 9. FUND      | 4  |
+| FUND COMPL        | 5  |
+| MEDIO INCOMP      | 6  |
+| MEDIO COMPL       | 7  |
+| SUP. INCOMP       | 8  |
+| SUP. COMP         | 9  |
+| MESTRADO          | 10 |
+| DOUTORADO         | 11 |
+| IGNORADO          | -1 |
+
+
+# Análise dos dados
+
+A partir desses dados, vamos construir alguns gráficos que nos indiquem alguma relação entre as variáveis.
+
+Vamos começar olhando para a relação entre as variáveis `Faixa Etária` e `Faixa Remun Média (SM)`:
+
+```{r}
+dados %>%
+  ggplot() +
+  aes(x = `Faixa Etária`, y = `Faixa Remun Média (SM)`) +
+  geom_point()
+```
+
+Primeiramente, podemos observar que existem valores "estranhos" (fora da tabela) no gráfico. Vejamos com mais cuidado essas variáveis.
+
+```{r}
+dados %>%
+  select(`Faixa Remun Média (SM)`) %>%
+  unique()
+
+dados %>%
+  select(`Faixa Etária`) %>%
+  unique()
+```
+
+O valor 99 deve se referir a valores ignorados, vamos tirá-los dos nossos dados:
+
+```{r}
+dados %>%
+  filter(`Faixa Remun Média (SM)` != 99, `Faixa Etária` != 99) %>%
+  ggplot() +
+  aes(x = `Faixa Etária`, y = `Faixa Remun Média (SM)`) +
+  geom_point()
+```
+
+Os dados fazem um pouco mais de sentido agora, porém o gráfico ainda não nos diz muito. 
+
+Vamos ver como está distribuída a remuneração média por faixa etária:
+
+```{r, layout="l-body-outset"}
+dados %>%
+  filter(`Faixa Remun Média (SM)` != 99, `Faixa Etária` != 99) %>%
+  ggplot() +
+  aes(fill = `Faixa Etária`%>% as.factor(),
+      y = `Faixa Etária`%>% as.factor(), 
+      x = `Faixa Remun Média (SM)`) +
+  geom_boxplot() +
+  labs(
+    title = "Distribuição da Remuneração Média por Faixa Etária",
+    subtitle = "",
+    caption = "Fonte: Elaboração própria. Dados do RAIS",
+    x = "Faixa de Remuneração Média",
+    y = ""
+  ) +
+  scale_x_continuous(breaks = 0:11) +
+  guides(fill = guide_legend(title = "Faixa Etária", 
+                             title.position = "top",
+                             nrow = 2, byrow = TRUE,)) +
+  theme_hc() +
+  theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0, colour = "black",),
+      plot.subtitle = element_text(face = "italic", size = 11, hjust = 0, colour = "grey30"),
+      plot.caption = element_text(face = "italic", size = 6, margin = margin(t = 15), hjust = 1),
+      legend.position = "top",
+      legend.text = element_text(face = "plain", colour = "grey30", size = 9),
+      legend.title = element_text(face = "bold", size = 10, hjust = 0.5),
+      axis.title = element_text(size = 10, margin = margin(t = 10, r = 10)),
+      axis.text = element_text(size = 8, margin = margin(t = 5, r = 5)),
+      panel.grid.major.x = element_line(colour = gray(0.85),  size = 0.5),
+      panel.grid.major.y = element_line(colour = gray(0.85),  size = 0.0)
+      ) 
+```
+
+Vejamos agora como está distribuída a remuneração média por escolaridade:
+
+```{r, layout="l-body-outset"}
+dados %>%
+  filter(`Faixa Remun Média (SM)` != 99, `Escolaridade após 2005` != 99) %>%
+  ggplot() +
+  aes(fill = `Escolaridade após 2005` %>% as.factor(),
+      y = `Escolaridade após 2005` %>% as.factor(), 
+      x = `Faixa Remun Média (SM)`) +
+  geom_boxplot() +
+  labs(
+    title = "Distribuição da Remuneração Média por Escolaridade",
+    subtitle = "",
+    caption = "Fonte: Elaboração própria. Dados do RAIS",
+    x = "Faixa de Remuneração Média",
+    y = ""
+  ) +
+  scale_x_continuous(breaks = 0:11) +
+  guides(fill = guide_legend(title = "Escolaridade", 
+                             title.position = "top",
+                             nrow = 2, byrow = TRUE,)) +
+  theme_hc() +
+  theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0, colour = "black",),
+      plot.subtitle = element_text(face = "italic", size = 11, hjust = 0, colour = "grey30"),
+      plot.caption = element_text(face = "italic", size = 6, margin = margin(t = 15), hjust = 1),
+      legend.position = "top",
+      legend.text = element_text(face = "plain", colour = "grey30", size = 9),
+      legend.title = element_text(face = "bold", size = 10, hjust = 0.5),
+      axis.title = element_text(size = 10, margin = margin(t = 10, r = 10)),
+      axis.text = element_text(size = 8, margin = margin(t = 5, r = 5)),
+      panel.grid.major.x = element_line(colour = gray(0.85),  size = 0.5),
+      panel.grid.major.y = element_line(colour = gray(0.85),  size = 0.0)
+      ) 
+```
+
+
+
+
+
+
+
+
+
+
+
 
