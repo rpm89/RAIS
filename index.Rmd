@@ -1,7 +1,7 @@
 ---
-title: "RAIS"
+title: "Introdução"
 description: |
-  Análise da base de dados RAIS
+  Introdução à base de dados RAIS. Importação e visualização de uma tabela pré-formatada com dados de Roraima de 2017.
 author: 
   - name: Rafael Peixoto
     affiliation: Universidade Estadual de Campinas
@@ -55,7 +55,8 @@ Dessas, vamos pegar algumas para analisar:
 dados <- RR17 %>%
   select(`Faixa Etária`,
          `Faixa Remun Média (SM)`,
-         `Escolaridade após 2005`)
+         `Escolaridade após 2005`,
+         `Sexo Trabalhador`)
 ```
 
 
@@ -165,7 +166,7 @@ dados %>%
   aes(fill = `Faixa Etária`%>% as.factor(),
       y = `Faixa Etária`%>% as.factor(), 
       x = `Faixa Remun Média (SM)`) +
-  geom_boxplot() +
+  geom_boxplot(outlier.size = 0.2) +
   labs(
     title = "Distribuição da Remuneração Média por Faixa Etária",
     subtitle = "",
@@ -198,10 +199,12 @@ Vejamos agora como está distribuída a remuneração média por escolaridade:
 dados %>%
   filter(`Faixa Remun Média (SM)` != 99, `Escolaridade após 2005` != 99) %>%
   ggplot() +
-  aes(fill = `Escolaridade após 2005` %>% as.factor(),
+  aes(
+      fill = `Escolaridade após 2005` %>% as.factor(),
       y = `Escolaridade após 2005` %>% as.factor(), 
-      x = `Faixa Remun Média (SM)`) +
-  geom_boxplot() +
+      x = `Faixa Remun Média (SM)`
+  ) +
+  geom_boxplot(outlier.size = 0.2) +
   labs(
     title = "Distribuição da Remuneração Média por Escolaridade",
     subtitle = "",
@@ -225,10 +228,55 @@ dados %>%
       axis.text = element_text(size = 8, margin = margin(t = 5, r = 5)),
       panel.grid.major.x = element_line(colour = gray(0.85),  size = 0.5),
       panel.grid.major.y = element_line(colour = gray(0.85),  size = 0.0)
-      ) 
+  ) 
 ```
 
 
+```{r, layout="l-body-outset"}
+dados %>%
+  filter(`Faixa Remun Média (SM)` != 99, `Escolaridade após 2005` != 99) %>%
+  mutate(`Sexo` = case_when(
+    `Sexo Trabalhador` == 2 ~ "Feminino",
+    `Sexo Trabalhador` == 1 ~ "Masculino",
+  )) %>%
+  ggplot() +
+  aes(
+      #fill = `Escolaridade após 2005` %>% as.factor(),
+      fill = `Sexo` %>% as.factor(),
+      y = `Escolaridade após 2005` %>% as.factor(), 
+      x = `Faixa Remun Média (SM)`
+  ) +
+  geom_boxplot(outlier.size = 0, outlier.color = "grey") +
+  labs(
+    title = "Distribuição da Remuneração Média por Escolaridade",
+    subtitle = "",
+    caption = "Fonte: Elaboração própria. Dados do RAIS",
+    x = "Faixa de Remuneração Média",
+    y = ""
+  ) +
+  scale_x_continuous(breaks = 0:11) +
+  guides(
+    fill = guide_legend(
+      title = "Sexo", 
+      title.position = "top",
+      nrow = 1, 
+      byrow = F,
+    )
+  ) +
+  theme_hc() +
+  theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0, colour = "black",),
+      plot.subtitle = element_text(face = "italic", size = 11, hjust = 0, colour = "grey30"),
+      plot.caption = element_text(face = "italic", size = 6, margin = margin(t = 15), hjust = 1),
+      legend.position = "top",
+      legend.text = element_text(face = "plain", colour = "grey30", size = 9),
+      legend.title = element_text(face = "bold", size = 10, hjust = 0.5),
+      axis.title = element_text(size = 10, margin = margin(t = 10, r = 10)),
+      axis.text = element_text(size = 8, margin = margin(t = 5, r = 5)),
+      panel.grid.major.x = element_line(colour = gray(0.85),  size = 0.5),
+      panel.grid.major.y = element_line(colour = gray(0.85),  size = 0.0)
+  ) 
+```
 
 
 

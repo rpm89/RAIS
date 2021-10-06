@@ -1,0 +1,233 @@
+---
+title: "Aulas Youtube"
+description: |
+  Análise da base de dados RAIS do ano de 2010.
+author: 
+  - name: Rafael Peixoto
+    affiliation: Universidade Estadual de Campinas
+date: 09-15-2021
+site: distill::distill_website
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(tidyverse)
+library(rmarkdown)
+library(ggthemes)
+library(hrbrthemes)
+```
+
+# Importação dos dados
+
+```{r}
+RR10 <- fread(
+  file = "RR2010.txt",
+  header = TRUE,
+  sep = ";",
+  dec = ",",
+  encoding = "Latin-1",
+  stringsAsFactors = FALSE
+)
+```
+
+```{r}
+glimpse(RR10)
+```
+
+# Tabela de Frequência 
+
+## Variável Categórica
+
+Vamos identificar a frequência das famílias por Faixa de Remuneração Média, em salários mínimos.
+
+```{r}
+freq_renda <- RR10 %>%
+  select("Renda" = `Faixa Remun Média (SM)`) %>%
+  group_by(Renda) %>%
+  summarise("n" = n()) %>%
+  mutate("perc" = (100 * n / sum(n)) %>% round(1))
+
+freq_renda %>%
+  paged_table(options = list(rows.print = 13))
+```
+
+Agora vamos montar o histograma dessa tabela de frequência: 
+
+```{r}
+barplot(
+  height = freq_renda$perc, 
+  names.arg = freq_renda$Renda,
+  xlab = "Faixa de Renda",
+  ylab = "%",
+  ylim = c(0, 40)
+)
+```
+
+```{r}
+RR10 %>%
+  select("Renda" = `Faixa Remun Média (SM)`) %>%
+  filter(Renda != 99) %>%
+  ggplot() +
+  aes(x = Renda, y = ..density..) +
+  geom_histogram(
+    binwidth = 1, 
+    fill = "#69b3a2", 
+    color = "#e9ecef"
+  ) +
+  theme_hc() +
+  labs(
+    title = "Distribuição de Rendas",
+    subtitle = "Histograma\n",
+    y = "Densidade",
+    x = "Faixa de Renda"
+  ) +
+  scale_x_continuous(breaks = seq(0, 11, 1)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+
+```
+
+
+## Variável Contínua
+
+```{r}
+classe_idade <- RR10 %>%
+  select(Idade) %>%
+  mutate("Classe" = Idade %>% cut(breaks = seq(from = min(.), 
+                                               to = max(.), 
+                                               by = 5), 
+                                  right = TRUE))
+
+classe_idade %>%
+  paged_table()
+```
+
+```{r}
+freq_idade <- classe_idade %>%
+  group_by(Classe) %>%
+  summarise("n" = n()) %>%
+  ungroup() %>%
+  mutate("perc" = (100 * n / sum(n)) %>% round(1))
+
+freq_idade %>%
+  paged_table()
+```
+
+```{r}
+barplot(
+  height = freq_idade$perc, 
+  names.arg = freq_idade$Classe,
+  #xlab = "Faixa de Idade",
+  ylab = "%",
+  #xlab = "%",
+  horiz = F,
+  las = 2,
+  ylim = c(0, 20)
+)
+```
+
+```{r}
+hist(
+  x = classe_idade$Idade, 
+  breaks = seq(0, 100, 5), 
+  probability = TRUE
+)
+
+lines(density(classe_idade$Idade), col = "blue")
+```
+
+```{r}
+RR10 %>%
+  select(Idade) %>%
+  ggplot() +
+  aes(x = Idade) +
+  geom_histogram(
+    aes(y = ..density..),
+    binwidth = 5,
+    fill = "#69b3a2",
+    color = "#e9ecef",
+  ) +
+  geom_density(color = "darkgreen", lwd = 0.8) +
+  stat_function(
+    fun = dnorm, 
+    args = list(mean = mean(RR10$Idade), sd = sd(RR10$Idade)),
+    linetype = "dashed",
+    lwd = 0.3
+  ) +
+  geom_vline(
+    xintercept = mean(RR10$Idade), 
+    linetype = "dashed", 
+    lwd = 0.3
+  ) +
+  geom_boxplot(
+    alpha = 0.3, 
+    fill = "darkgreen", 
+    width = 0.002, 
+    outlier.size = 0.1, 
+    position = "identity",
+    lwd = 0.3
+  ) +
+  theme_hc() +
+  labs(
+    title = "Distribuição de idades",
+    subtitle = "Histograma\n",
+    y = "Densidade"
+  ) +
+  scale_x_continuous(breaks = seq(10, 100, 5)) +
+  scale_y_continuous(labels = scales::percent_format())
+```
+
+# Medidas de Associação
+
+```{r}
+RR10 %>%
+  select(
+    "Escolaridade" = `Escolaridade após 2005`,
+    "Remuneração" = `Vl Remun Média (SM)`
+  ) %>%
+  mutate(Escolaridade = Escolaridade %>% as.factor()) %>%
+  ggplot() +
+  aes(
+    x = Escolaridade, 
+    y = Remuneração, 
+    color = Escolaridade
+  ) +
+  geom_jitter(size = 1) +
+  theme_hc() +
+  guides(
+    color = guide_legend(
+      title = "Escolaridade", 
+      title.position = "top",
+      nrow = 1, 
+      byrow = TRUE
+    ) 
+  ) +
+  theme(
+      legend.position = "top",
+      legend.text = element_text(face = "plain", colour = "grey30", size = 9),
+      legend.title = element_text(face = "bold", size = 10, hjust = 0.5),
+  ) +
+  labs(
+    title = "Remuneração Média por Escolaridade",
+    subtitle = "Remuneração em Salários Mínimos",
+    y = "Remuneração Média",
+    x = "Escolaridade"
+  ) +
+  scale_y_continuous(breaks = seq(0, 160, 30))
+  
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

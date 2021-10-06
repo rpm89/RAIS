@@ -5,8 +5,12 @@ description: |
 output_dir: "docs"
 navbar:
   right:
-    - text: "Home"
+    - text: "Introdução"
       href: index.html
+    - text: "RAIS 2010"
+      href: rais2010.html
+    - text: "Aulas Youtube"
+      href: AulasYT.html
 output: 
   distill::distill_article:
     self_contained: false
